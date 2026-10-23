@@ -287,3 +287,25 @@ def test_program_add_from_start_menu(admin, tmp_path, monkeypatch):
         assert admin.post("/api/programs/remove", data={"csrf": tok, "rel": bad}, follow_redirects=False).status_code == 400
     r = admin.post("/api/programs/remove", data={"csrf": tok, "rel": "Scanner.lnk"}, follow_redirects=False)
     assert r.status_code == 303 and not (main.PROG / "Scanner.lnk").exists()
+
+
+def test_program_copy_to_server(admin, tmp_path, monkeypatch):
+    from app import main
+    app = tmp_path / "Tool"
+    app.mkdir()
+    (app / "tool.exe").write_bytes(b"x")
+    (app / "tool.dll").write_bytes(b"y")
+    root = tmp_path / "sm"
+    root.mkdir()
+    (root / "Tool.lnk").write_bytes(b"x")
+    monkeypatch.setattr(main, "START_DIRS", [root])
+    monkeypatch.setattr(main, "lnk_targets", lambda paths: [str(app / "tool.exe")])
+    tok = admin.get("/programs").text.split('name="csrf" value="')[1].split('"')[0]
+    r = admin.post("/api/programs/copy", data={"csrf": tok, "rel": "0/Tool.lnk"}, follow_redirects=False)
+    assert r.status_code == 303 and (main.PROG / "_files" / "Tool" / "tool.dll").is_file()
+    assert '/d "%~dp0_files\Tool" "tool.exe"' in (main.PROG / "Tool.cmd").read_text()
+    monkeypatch.setattr(main, "lnk_targets", lambda paths: ["C:\Windows\System32\charmap.exe"])
+    assert admin.post("/api/programs/copy", data={"csrf": tok, "rel": "0/Tool.lnk"}, follow_redirects=False).status_code == 400
+    monkeypatch.setattr(main, "COPY_MAX", 1)
+    monkeypatch.setattr(main, "lnk_targets", lambda paths: [str(app / "tool.exe")])
+    assert admin.post("/api/programs/copy", data={"csrf": tok, "rel": "0/Tool.lnk"}, follow_redirects=False).status_code == 400

@@ -765,16 +765,31 @@ def start_menu():
             if "uninstall" not in f.name.lower() and "unins" not in f.name.lower():
                 found.append({"name": f.stem, "rel": f"{i}/{f.relative_to(root).as_posix()}", "target": ""})
     found.sort(key=lambda a: a["name"].lower())
-    if found:  # one PowerShell call reads every target
-        ps = "$s=New-Object -ComObject WScript.Shell; $a=$env:LNKS|ConvertFrom-Json; foreach($l in $a){$s.CreateShortcut($l).TargetPath}"
-        try:
-            env = {**os.environ, "LNKS": json.dumps([str(START_DIRS[int(a["rel"][0])] / a["rel"][2:]) for a in found])}
-            out = subprocess.run(["powershell", "-NoProfile", "-Command", ps], capture_output=True, text=True, timeout=20, env=env).stdout.splitlines()
-            for a, t in zip(found, out):
-                a["target"] = t
-        except Exception:
-            pass
+    for a, t in zip(found, lnk_targets([str(START_DIRS[int(a["rel"][0])] / a["rel"][2:]) for a in found])):
+        a["target"] = t
     return found
+
+
+def lnk_targets(paths):
+    """Shortcut targets, one per path (one PowerShell call); [] when it fails."""
+    ps = "$s=New-Object -ComObject WScript.Shell; $a=$env:LNKS|ConvertFrom-Json; foreach($l in $a){$s.CreateShortcut($l).TargetPath}"
+    try:
+        return subprocess.run(["powershell", "-NoProfile", "-Command", ps], capture_output=True, text=True, timeout=20,
+                              env={**os.environ, "LNKS": json.dumps(paths)}).stdout.splitlines() if paths else []
+    except Exception:
+        return []
+
+
+def start_src(rel):
+    """The Start Menu .lnk for rel '<root index>/<path>', or 400."""
+    idx, _, sub = rel.partition("/")
+    if not idx.isdigit() or int(idx) >= len(START_DIRS) or not sub.lower().endswith(".lnk"):
+        raise HTTPException(400, "Невалидна програма")
+    root = START_DIRS[int(idx)].resolve()
+    src = (root / sub).resolve()
+    if not src.is_relative_to(root) or not src.is_file():
+        raise HTTPException(400, "Невалидна програма")
+    return src
 
 
 @app.get("/programs", response_class=HTMLResponse)
@@ -787,19 +802,50 @@ async def programs(request: Request, msg: str = ""):
 @app.post("/api/programs/add")
 async def programs_add(request: Request):
     u = await guard(request, True)
-    rel = str((await request.form()).get("rel", ""))
-    idx, _, sub = rel.partition("/")
-    if not idx.isdigit() or int(idx) >= len(START_DIRS) or not sub.lower().endswith(".lnk"):
-        raise HTTPException(400, "Невалидна програма")
-    root = START_DIRS[int(idx)].resolve()
-    src = (root / sub).resolve()
-    if not src.is_relative_to(root) or not src.is_file():
-        raise HTTPException(400, "Невалидна програма")
+    src = start_src(str((await request.form()).get("rel", "")))
     PROG.mkdir(exist_ok=True)
     dst = unique(PROG, src.name)
     shutil.copy2(src, dst)
     log(u, "program.add", request, dst.name)
     return RedirectResponse("/programs?msg=" + quote(f"Добавена: {src.stem}"), 303)
+
+
+COPY_MAX = 1536 * 1024 ** 2
+
+
+def copy_app(folder, dest):
+    """Copy folder to dest unless it is bigger than COPY_MAX; returns False when too big."""
+    size = 0
+    for f in folder.rglob("*"):
+        size += f.stat().st_size if f.is_file() else 0
+        if size > COPY_MAX:
+            return False
+    shutil.copytree(folder, dest)
+    return True
+
+
+@app.post("/api/programs/copy")
+async def programs_copy(request: Request):
+    """Copy the program's own folder to the server and add a tile that starts it from there (portable apps only)."""
+    u = await guard(request, True)
+    src = start_src(str((await request.form()).get("rel", "")))
+    target = (lnk_targets([str(src)]) or [""])[0]
+    exe = Path(target)
+    folder = exe.parent
+    # refuse Windows itself, drive roots and the Program Files folders: only an app's own folder
+    if (not target.lower().endswith(".exe") or not exe.is_file() or folder == Path(folder.anchor)
+            or folder.name.lower() in ("program files", "program files (x86)")
+            or folder.resolve().is_relative_to(Path(os.environ.get("SystemRoot", "C:/Windows")).resolve())):
+        raise HTTPException(400, "Тази програма не може да се копира")
+    (PROG / "_files").mkdir(parents=True, exist_ok=True)
+    dest = unique(PROG / "_files", src.stem)
+    if not await asyncio.to_thread(copy_app, folder, dest):
+        raise HTTPException(400, "Папката е твърде голяма (над 1,5 GB)")
+    # %~dp0 keeps Cyrillic out of the file: it is the folder the launcher sits in
+    launcher = unique(PROG, src.stem + ".cmd")
+    launcher.write_bytes(f'@start "" /d "%~dp0_files\{dest.name}" "{exe.name}"\r\n'.encode("ascii", "replace"))
+    log(u, "program.copy", request, dest.name)
+    return RedirectResponse("/programs?msg=" + quote(f"Копирана на сървъра: {src.stem}"), 303)
 
 
 @app.post("/api/programs/remove")
