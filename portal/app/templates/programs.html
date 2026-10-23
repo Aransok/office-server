@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% import "_icons.html" as ic %}
+{% block title %}Програми{% endblock %}
+{% block body %}
+<h1 class="ph">Програми</h1>
+<div class="apps">
+  <a class="app" href="officeapp:///"><span class="fi dir">{{ ic.i("folder") }}</span><span class="an">Файлове<small>Отвори диск O: в Windows</small></span></a>
+  {% for a in apps %}
+  <a class="app" href="{{ a.link }}"><span class="fi {{ a.ext }}">{{ a.ext|upper }}</span><span class="an">{{ a.name }}<small>{{ a.group or 'Програми' }}</small></span></a>
+  {% endfor %}
+</div>
+{% if not apps %}<p class="muted">Още няма програми. Администраторът ги слага в папка „_Програми“ на сървъра, например <b>_Програми\Expecta\Expecta.exe</b>.</p>{% endif %}
+
+<section class="card">
+  <h2>Настрой този компютър (веднъж)</h2>
+  <p>Свалете <b>двата</b> файла в една и съща папка и стартирайте <b>setup.cmd</b> с двоен клик. Той свързва папките като диск <b>O:</b>, приема сертификата на портала, слага преки пътища и позволява на плочките горе да отварят програмите.</p>
+  <p><a class="btn primary" href="/client/setup.cmd">Свали setup.cmd</a> <a class="btn" href="/client/root.crt">Свали root.crt</a></p>
+</section>
+{% endblock %}

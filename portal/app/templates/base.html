@@ -1,0 +1,40 @@
+{% import "_icons.html" as ic %}
+{% set path = request.url.path %}
+<!doctype html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Офис портал{% endblock %}</title>
+<link rel="stylesheet" href="/static/style.css?v={{ asset_v() }}">
+</head>
+<body{% if user %} data-csrf="{{ user.csrf }}" class="app"{% else %} class="bare"{% endif %}>
+<div class="glow g1"></div><div class="glow g2"></div>
+{% if user %}
+<aside class="side">
+  <a class="brand" href="/files"><span class="logo">О</span><span class="bt">Офис<small>портал</small></span></a>
+  <nav>
+    <a href="/files" class="{{ 'on' if path.startswith('/files') }}">{{ ic.i('folder') }}<span>Файлове</span></a>
+    <a href="/programs" class="{{ 'on' if path.startswith('/programs') }}">{{ ic.i('apps') }}<span>Програми</span></a>
+    {% if user.role == 'admin' %}
+    <i class="sep"></i>
+    <a href="/admin/users" class="{{ 'on' if path.startswith('/admin') }}">{{ ic.i('users') }}<span>Потребители</span></a>
+    <a href="/log" class="{{ 'on' if path.startswith('/log') }}">{{ ic.i('log') }}<span>Журнал</span></a>
+    <a href="/trash" class="{{ 'on' if path.startswith('/trash') }}">{{ ic.i('trash') }}<span>Кошче</span></a>
+    <a href="/status" class="{{ 'on' if path.startswith('/status') }}">{{ ic.i('pulse') }}<span>Състояние</span></a>
+    {% endif %}
+  </nav>
+  <form method="post" action="/logout" class="logout">
+    <input type="hidden" name="csrf" value="{{ user.csrf }}">
+    <span class="av">{{ user.username[:1]|upper }}</span><span class="un">{{ user.username }}</span>
+    <button title="Изход" aria-label="Изход">{{ ic.i('out') }}<span class="t">Изход</span></button>
+  </form>
+</aside>
+{% endif %}
+<div class="wrap">
+<main>{% block body %}{% endblock %}</main>
+<footer>Версия {{ version }}</footer>
+</div>
+<script src="/static/app.js?v={{ asset_v() }}"></script>
+</body>
+</html>

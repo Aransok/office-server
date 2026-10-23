@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+.pytest_cache/
+logs/
+.env
+*.db
+secrets.local.txt
+*.zip

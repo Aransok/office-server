@@ -1,0 +1,13 @@
+name: release
+on:
+  push:
+    tags: ['v*']
+jobs:
+  zip:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: Compress-Archive -Path client,portal,scripts,INSTALL-SERVER.cmd,README.md -DestinationPath OfficeServer.zip
+        shell: powershell
+      - run: gh release create ${{ github.ref_name }} OfficeServer.zip --generate-notes
+        env: { GH_TOKEN: '${{ github.token }}' }

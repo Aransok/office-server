@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Състояние{% endblock %}
+{% block body %}
+<h1 class="ph">Състояние на сървъра</h1>
+<div class="tiles">
+  {% for name, text, ok in checks %}
+  <div class="card tile {{ 'good' if ok else 'badc' }}">
+    <div class="tl"><span class="dot"></span>{{ name }}</div>
+    <div class="tv">{{ text }}</div>
+    <div class="{{ 'ok' if ok else 'bad' }}">{{ '✔ ОК' if ok else '✖ Проблем' }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

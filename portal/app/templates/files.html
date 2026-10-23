@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% import "_icons.html" as ic %}
+{% block title %}Файлове{% endblock %}
+{% block body %}
+<div id="fm" data-path="{{ p }}" data-write="{{ 1 if can_write else 0 }}" data-max="{{ max_mb }}">
+  <div class="bar">
+    <div class="crumbs">
+      <a href="/files">{{ ic.i("folder") }}Начало</a>
+      {% for n, cp in crumbs %}<b>/</b><a href="/files?p={{ cp|urlencode }}">{{ n }}</a>{% endfor %}
+    </div>
+    <form method="get" action="/files" class="search">
+      <input type="hidden" name="p" value="{{ p }}">
+      {{ ic.i("search") }}<input name="q" value="{{ q }}" placeholder="Търсене в тази папка">
+      <button class="ghost">Търси</button>
+    </form>
+  </div>
+
+  <div class="actions">
+    {% if p and can_write %}
+      <button id="b-upload" class="primary">{{ ic.i("up") }}Качи файлове</button>
+      <input id="file-in" type="file" multiple hidden>
+    {% endif %}
+    {% if can_write and (p or user.role == 'admin') %}<button id="b-mkdir">{{ ic.i("plus") }}Нова папка</button>{% endif %}
+    <button id="b-zip" class="sel" disabled>Свали (ZIP)</button>
+    {% if can_write %}
+      <button id="b-rename" class="sel one" disabled>Преименувай</button>
+      <button id="b-move" class="sel" disabled>Премести</button>
+      <button id="b-copy" class="sel" disabled>Копирай</button>
+      <button id="b-del" class="sel danger" disabled>Изтрий</button>
+    {% endif %}
+    <span id="msg" role="status"></span>
+  </div>
+
+  {% if can_write and p %}<div id="drop">{{ ic.i("up") }}<span>Пуснете файловете тук</span></div>{% endif %}
+
+  <div class="card flush"><table class="files">
+    <thead><tr>
+      <th></th>
+      {% for key, label in (("name","Име"),("size","Размер"),("mtime","Променен")) %}
+      <th><a href="/files?p={{ p|urlencode }}&q={{ q|urlencode }}&s={{ key }}&d={{ 'desc' if s == key and d == 'asc' else 'asc' }}">{{ label }}{% if s == key %} {{ '▲' if d == 'asc' else '▼' }}{% endif %}</a></th>
+      {% endfor %}
+      <th>Кой</th>
+    </tr></thead>
+    <tbody>
+      {% if p and not q %}<tr><td></td><td colspan="4"><a href="/files?p={{ parent|urlencode }}">{{ ic.i("back") }} Нагоре</a></td></tr>{% endif %}
+      {% for i in items %}
+      <tr data-path="{{ i.path }}" data-name="{{ i.name }}" data-dir="{{ 1 if i.dir else 0 }}">
+        <td><input type="checkbox" class="pick" aria-label="Избери {{ i.name }}"></td>
+        <td>{% if i.dir %}<span class="fi dir">{{ ic.i("folder") }}</span><a class="nm" href="/files?p={{ i.path|urlencode }}">{{ i.name }}</a>
+            {% else %}<span class="fi {{ i.name.rsplit(".",1)[-1].lower()|truncate(4,True,"") if "." in i.name else "" }}">{% if "." in i.name %}{{ i.name.rsplit(".",1)[-1][:4]|upper }}{% else %}{{ ic.i("file") }}{% endif %}</span><a class="nm" href="/download?p={{ i.path|urlencode }}">{{ i.name }}</a>
+              {% if i.name.lower().endswith(('.pdf','.png','.jpg','.jpeg','.gif','.webp','.txt','.csv')) %} <a class="mini" target="_blank" rel="noopener" href="/download?p={{ i.path|urlencode }}&inline=1">преглед</a>{% endif %}{% endif %}</td>
+        <td>{{ '' if i.dir else i.size|size }}</td>
+        <td>{{ i.mtime|dt }}</td>
+        <td>{{ i.by }}</td>
+      </tr>
+      {% else %}
+      <tr><td></td><td colspan="4" class="muted">{% if q %}Няма резултати.{% else %}Папката е празна.{% endif %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+<dialog id="dlg"><form method="dialog"><p id="dlg-text"></p><div id="dlg-body"></div>
+  <div class="row"><button value="ok" class="primary">Добре</button><button value="cancel">Отказ</button></div></form></dialog>
+{% endblock %}

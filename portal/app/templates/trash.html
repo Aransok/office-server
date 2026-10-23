@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Кошче{% endblock %}
+{% block body %}
+<div class="ph-row"><div><h1 class="ph">Кошче</h1><p class="muted">Изтритите файлове се пазят 30 дни.</p></div>
+{% if rows %}<button id="empty" class="danger">Изпразни кошчето</button>{% endif %}</div>
+<span id="msg" role="status"></span>
+<div class="card flush"><table id="trash">
+  <tr><th>Файл</th><th>Откъде</th><th>Кой</th><th>Кога</th><th></th></tr>
+  {% for r in rows %}<tr><td><span class="fn">{{ '📁' if r.is_dir else '📄' }} {{ r.name }}</span></td><td>{{ r.orig }}</td><td>{{ r.user }}</td><td>{{ r.ts|dt }}</td>
+    <td class="r"><button class="restore" data-id="{{ r.id }}">Върни</button></td></tr>
+  {% else %}<tr><td colspan="5" class="muted empty">Кошчето е празно.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

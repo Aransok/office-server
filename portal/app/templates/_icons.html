@@ -1,0 +1,21 @@
+{% macro i(n) -%}
+<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+{%- if n == 'folder' %}<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+{%- elif n == 'file' %}<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>
+{%- elif n == 'apps' %}<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>
+{%- elif n == 'users' %}<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.3c2 .7 3.5 2.6 3.5 5.7"/>
+{%- elif n == 'log' %}<path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>
+{%- elif n == 'trash' %}<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>
+{%- elif n == 'pulse' %}<path d="M3 12h4l3-8 4 16 3-8h4"/>
+{%- elif n == 'out' %}<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 8l-4 4 4 4M6 12h10"/>
+{%- elif n == 'up' %}<path d="M12 16V4M7 9l5-5 5 5M4 20h16"/>
+{%- elif n == 'search' %}<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>
+{%- elif n == 'back' %}<path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>
+{%- elif n == 'dl' %}<path d="M12 4v12M7 11l5 5 5-5M4 20h16"/>
+{%- elif n == 'lock' %}<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>
+{%- elif n == 'ok' %}<path d="m5 12.5 4.5 4.5L19 7.5"/>
+{%- elif n == 'x' %}<path d="M6 6l12 12M18 6 6 18"/>
+{%- elif n == 'plus' %}<path d="M12 5v14M5 12h14"/>
+{%- endif -%}
+</svg>
+{%- endmacro %}

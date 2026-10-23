@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Вход{% endblock %}
+{% block body %}
+<div class="hero">
+  <form method="post" action="/login" class="card login">
+    <span class="logo big">О</span>
+    <h1>Добре дошли</h1>
+    <p class="muted">Влезте, за да стигнете до вашите файлове.</p>
+    {% if error %}<p class="err">{{ error }}</p>{% endif %}
+    <label>Потребител <input name="username" autocomplete="username" autofocus required></label>
+    <label>Парола <input name="password" type="password" autocomplete="current-password" required></label>
+    <button class="primary wide">Влез</button>
+  </form>
+</div>
+{% endblock %}

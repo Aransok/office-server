@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Журнал{% endblock %}
+{% block body %}
+<h1 class="ph">Журнал на действията</h1>
+<form method="get" class="card inline">
+  <label>Потребител <select name="user"><option value="">всички</option>{% for n in names %}<option {{ 'selected' if n == user_f }}>{{ n }}</option>{% endfor %}</select></label>
+  <label>Действие <select name="action"><option value="">всички</option>{% for a in actions %}<option {{ 'selected' if a == action_f }}>{{ a }}</option>{% endfor %}</select></label>
+  <label>От <input type="date" name="frm" value="{{ frm }}"></label>
+  <label>До <input type="date" name="to" value="{{ to }}"></label>
+  <button class="primary">Покажи</button>
+</form>
+<div class="card flush"><table>
+  <tr><th>Кога</th><th>Кой</th><th>Действие</th><th>IP</th><th>Път</th><th>Подробности</th></tr>
+  {% for r in rows %}<tr><td>{{ ts(r.ts) }}</td><td>{{ r.user }}</td><td><span class="pill">{{ r.action }}</span></td><td>{{ r.ip }}</td><td>{{ r.path }}</td><td>{{ r.detail }}</td></tr>
+  {% else %}<tr><td colspan="6" class="muted empty">Няма записи.</td></tr>{% endfor %}
+</table></div>
+<p class="muted">Показани са последните 500 записа.</p>
+{% endblock %}
