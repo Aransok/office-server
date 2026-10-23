@@ -1,7 +1,7 @@
-"""python -m app.cli create-admin|reset-password [username] | sync-rights"""
+"""python -m app.cli create-admin|reset-password [username [password]] | sync-rights"""
 import sys
 
-from . import ntfs
+from . import ntfs, winuser
 from .db import db, init
 from .security import create_user, new_password, ph
 
@@ -17,12 +17,14 @@ def main():
         sys.exit("usage: python -m app.cli create-admin|reset-password [username] | sync-rights")
     name = sys.argv[2] if len(sys.argv) > 2 else "admin"
     row = db("SELECT id FROM users WHERE username=?", (name,), "one")
-    pw = new_password()
+    pw = sys.argv[3] if len(sys.argv) > 3 else new_password()
     if cmd == "reset-password":
         if not row:
             sys.exit(f"User {name} not found.")
         db("UPDATE users SET pw_hash=? WHERE id=?", (ph.hash(pw), row["id"]))
         db("DELETE FROM sessions WHERE user_id=?", (row["id"],))
+        if not winuser.create(name, pw):  # keep O: in step; the portal password is already changed
+            print("WARNING: Windows refused the password (too simple?), so drive O: keeps the old one.")
     else:
         if row:
             sys.exit(f"User {name} already exists.")

@@ -26,7 +26,7 @@
   </nav>
   <form method="post" action="/logout" class="logout">
     <input type="hidden" name="csrf" value="{{ user.csrf }}">
-    <span class="av">{{ user.username[:1]|upper }}</span><span class="un">{{ user.username }}</span>
+    <a href="/account" class="me" title="Смяна на парола"><span class="av">{{ user.username[:1]|upper }}</span><span class="un">{{ user.username }}</span></a>
     <button title="Изход" aria-label="Изход">{{ ic.i('out') }}<span class="t">Изход</span></button>
   </form>
 </aside>

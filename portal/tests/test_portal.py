@@ -217,6 +217,46 @@ def test_user_pages_sync_windows_account(admin, monkeypatch):
     assert ("user", "anna", "/active:no") in calls
 
 
+def test_user_changes_own_password(bob, monkeypatch):
+    from app import winuser
+    calls = []
+    monkeypatch.setattr(C, "NTFS_RIGHTS", True)
+    monkeypatch.setattr(winuser, "_net", lambda *a: calls.append(a) or True)
+    csrf = bob.csrf["X-CSRF"]
+    other = TestClient(app, follow_redirects=False)
+    other.post("/login", data={"username": "bob", "password": "pw"})  # a second session
+    def change(**f):
+        return bob.post("/account/password", data={"csrf": csrf, "old": "pw", "new": "newpass99", "again": "newpass99", **f})
+    assert "не е вярна" in change(old="wrong").text
+    assert "не съвпадат" in change(again="other999").text
+    assert "между 8" in change(new="short", again="short").text
+    assert not calls  # nothing reached Windows
+    assert "е сменена" in change().text
+    assert ("user", "bob", "newpass99", "/add") in calls
+    assert bob.get("/files").status_code == 200  # this session survives
+    assert other.get("/files").status_code == 303  # the other one is logged out
+    assert TestClient(app).post("/login", data={"username": "bob", "password": "newpass99"}).status_code == 200
+
+
+def test_windows_refusal_changes_nothing(bob, monkeypatch):
+    from app import winuser
+    monkeypatch.setattr(C, "NTFS_RIGHTS", True)
+    monkeypatch.setattr(winuser, "_net", lambda *a: False)
+    r = bob.post("/account/password", data={"csrf": bob.csrf["X-CSRF"], "old": "pw", "new": "newpass99", "again": "newpass99"})
+    assert "Windows отказа" in r.text
+    assert TestClient(app).post("/login", data={"username": "bob", "password": "pw"}).status_code == 200  # old one still works
+
+
+def test_admin_sets_password(admin, bob):
+    uid = db("SELECT id FROM users WHERE username='bob'", fetch="all")[0]["id"]
+    csrf = admin.csrf["X-CSRF"]
+    assert "между 8" in admin.post(f"/admin/users/{uid}/setpw", data={"csrf": csrf, "pw": "abc"}).text
+    assert "е сменена" in admin.post(f"/admin/users/{uid}/setpw", data={"csrf": csrf, "pw": "chosen-pass1"}).text
+    assert bob.get("/files").status_code == 303  # bob was logged out
+    assert TestClient(app).post("/login", data={"username": "bob", "password": "chosen-pass1"}).status_code == 200
+    assert bob.post(f"/admin/users/{uid}/setpw", data={"csrf": "x", "pw": "chosen-pass2"}).status_code in (303, 403)
+
+
 def test_programs_page_lists_launchable_files_only(bob):
     from app.main import PROG
     (PROG / "Expecta").mkdir(parents=True, exist_ok=True)

@@ -45,6 +45,7 @@ footer{max-width:1200px;margin:32px auto 0;color:var(--mut);font-size:.78rem;opa
 .sep{height:1px;background:var(--line);margin:10px 8px}
 .logout{display:flex;align-items:center;gap:10px;padding:10px;border-radius:14px;background:var(--hov)}
 .av{width:30px;height:30px;border-radius:50%;display:inline-grid;place-items:center;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;font-weight:700;font-size:.85rem;flex:none}
+.logout .me{display:flex;align-items:center;gap:10px;flex:1;min-width:0;color:inherit;text-decoration:none}
 .un{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .logout button{padding:6px;border:0;background:none;color:var(--mut);box-shadow:none}
 .logout button:hover:not(:disabled){color:var(--bad);background:none;transform:none;box-shadow:none}

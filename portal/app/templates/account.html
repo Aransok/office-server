@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Моят профил{% endblock %}
+{% block body %}
+<h1 class="ph">Смяна на парола</h1>
+{% if msg %}<p class="notice">{{ msg }}</p>{% endif %}
+<form method="post" action="/account/password" class="card">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label>Сегашна парола <input type="password" name="old" autocomplete="current-password" required></label>
+  <label>Нова парола <input type="password" name="new" minlength="8" maxlength="64" autocomplete="new-password" required></label>
+  <label>Нова парола още веднъж <input type="password" name="again" minlength="8" maxlength="64" autocomplete="new-password" required></label>
+  <p class="muted">Поне 8 знака. Същата парола важи и за диск O: на компютъра.</p>
+  <button class="primary">Смени</button>
+</form>
+{% endblock %}

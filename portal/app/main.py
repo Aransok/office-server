@@ -142,6 +142,21 @@ async def guard(request, admin=False):
     return u
 
 
+MIN_PW, MAX_PW = 8, 64
+PW_LEN = f"Паролата трябва да е между {MIN_PW} и {MAX_PW} знака."
+WIN_REFUSED = "Windows отказа паролата (твърде проста?). Нищо не е сменено."
+
+
+async def set_password(uid, name, pw, keep=None):
+    """Windows account first (it enforces the PC's password rules), then the portal, so O: and the portal never differ.
+    Logs the user out everywhere except the session `keep`. False when Windows refused."""
+    if not await asyncio.to_thread(winuser.create, name, pw):
+        return False
+    db("UPDATE users SET pw_hash=? WHERE id=?", (ph.hash(pw), uid))
+    db("DELETE FROM sessions WHERE user_id=? AND token IS NOT ?", (uid, keep))
+    return True
+
+
 def ip(request):
     return request.client.host if request.client else ""
 
@@ -599,12 +614,60 @@ async def admin_reset(request: Request, uid: int):
     if not row:
         raise HTTPException(404, "Не е намерено")
     pw = new_password()
-    db("UPDATE users SET pw_hash=? WHERE id=?", (ph.hash(pw), uid))
-    db("DELETE FROM sessions WHERE user_id=?", (uid,))
+    if not await set_password(uid, row["username"], pw):
+        return users_page(request, u, WIN_REFUSED)
     log(u, "password_reset", request, detail=row["username"])
-    ok = await asyncio.to_thread(winuser.create, row["username"], pw)
-    note = "" if ok else " ВНИМАНИЕ: паролата за Windows (диск O:) не е сменена."
-    return users_page(request, u, f"Нова парола за {row['username']}: {pw} (за портала и за диск O:, показва се само сега).{note}")
+    return users_page(request, u, f"Нова парола за {row['username']}: {pw} (за портала и за диск O:, показва се само сега).")
+
+
+@app.post("/admin/users/{uid}/setpw", response_class=HTMLResponse)
+async def admin_setpw(request: Request, uid: int):
+    u = await guard(request, True)
+    pw = str((await request.form()).get("pw", ""))
+    row = db("SELECT username FROM users WHERE id=?", (uid,), "one")
+    if not row:
+        raise HTTPException(404, "Не е намерено")
+    if not MIN_PW <= len(pw) <= MAX_PW:
+        return users_page(request, u, PW_LEN)
+    if not await set_password(uid, row["username"], pw, keep=request.cookies.get("sid") if uid == u["id"] else None):
+        return users_page(request, u, WIN_REFUSED)
+    log(u, "password_set", request, detail=row["username"])
+    return users_page(request, u, f"Паролата на {row['username']} е сменена (за портала и за диск O:).")
+
+
+# ---------- own password ----------
+
+@app.get("/account", response_class=HTMLResponse)
+async def account_page(request: Request):
+    u = await guard(request)
+    return render(request, "account.html", u, msg="", csrf=u["csrf"])
+
+
+@app.post("/account/password", response_class=HTMLResponse)
+async def account_password(request: Request):
+    u = await guard(request)
+    form = await request.form()
+    old, new, again = (str(form.get(k, "")) for k in ("old", "new", "again"))
+    keys = (("u", u["username"].lower()),)
+    msg = ""
+    if locked(*keys):
+        msg = "Твърде много опити. Опитайте след 5 минути."
+    elif not check_login(u["username"], old):
+        register_fail(*keys)
+        msg = "Сегашната парола не е вярна."
+    elif new != again:
+        msg = "Новите пароли не съвпадат."
+    elif not MIN_PW <= len(new) <= MAX_PW:
+        msg = PW_LEN
+    elif new == old:
+        msg = "Новата парола трябва да е различна."
+    elif not await set_password(u["id"], u["username"], new, keep=request.cookies.get("sid")):
+        msg = WIN_REFUSED
+    else:
+        clear_fails(*keys)
+        log(u, "password_change", request)
+        msg = "Паролата е сменена (за портала и за диск O:). На другите компютри влезте с новата."
+    return render(request, "account.html", u, 400 if "сменена" not in msg else 200, msg=msg, csrf=u["csrf"])
 
 
 @app.post("/admin/users/{uid}/perms", response_class=HTMLResponse)

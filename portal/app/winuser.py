@@ -8,7 +8,8 @@ NAME_OK = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,19}$")
 
 
 def _net(*a):
-    return subprocess.run(["net", *a], capture_output=True, text=True).returncode == 0
+    # input="y": net asks "continue?" for passwords over 14 characters and would otherwise wait forever
+    return subprocess.run(["net", *a], capture_output=True, text=True, input="y\n", timeout=30).returncode == 0
 
 
 def create(name, pw):

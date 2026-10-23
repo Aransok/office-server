@@ -16,6 +16,7 @@
   <h2><span class="av">{{ x.username[:1]|upper }}</span>{{ x.username }} <small>{{ 'администратор' if x.role == 'admin' else 'потребител' }}{% if not x.active %} · изключен{% endif %}</small></h2>
   <div class="row">
     <form method="post" action="/admin/users/{{ x.id }}/reset"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Нова парола</button></form>
+    <form method="post" action="/admin/users/{{ x.id }}/setpw" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="password" name="pw" minlength="8" maxlength="64" autocomplete="new-password" placeholder="Задай парола" required><button>Задай</button></form>
     {% if x.id != user.id %}
     <form method="post" action="/admin/users/{{ x.id }}/toggle"><input type="hidden" name="csrf" value="{{ csrf }}"><button>{{ 'Включи' if not x.active else 'Изключи' }}</button></form>
     {% endif %}
