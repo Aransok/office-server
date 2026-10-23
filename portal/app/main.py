@@ -766,7 +766,7 @@ def start_menu():
                 found.append({"name": f.stem, "rel": f"{i}/{f.relative_to(root).as_posix()}", "target": ""})
     found.sort(key=lambda a: a["name"].lower())
     if found:  # one PowerShell call reads every target
-        ps = "$s=New-Object -ComObject WScript.Shell; $env:LNKS|ConvertFrom-Json|%{$s.CreateShortcut($_).TargetPath}"
+        ps = "$s=New-Object -ComObject WScript.Shell; $a=$env:LNKS|ConvertFrom-Json; foreach($l in $a){$s.CreateShortcut($l).TargetPath}"
         try:
             env = {**os.environ, "LNKS": json.dumps([str(START_DIRS[int(a["rel"][0])] / a["rel"][2:]) for a in found])}
             out = subprocess.run(["powershell", "-NoProfile", "-Command", ps], capture_output=True, text=True, timeout=20, env=env).stdout.splitlines()
