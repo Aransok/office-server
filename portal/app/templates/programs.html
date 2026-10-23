@@ -20,13 +20,13 @@
   {% for a in installed %}
   <form method="post" action="/api/programs/add" class="row">
     <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="rel" value="{{ a.rel }}">
-    <span class="an">{{ a.name }}<small>{{ a.target or '?' }}</small></span>
+    <span class="an">{{ a.name }}<small>{{ a.target or '?' }}{% if a.args %} {{ a.args }}{% endif %}</small></span>
     <button class="btn">Добави</button>
     <button class="btn" formaction="/api/programs/copy" title="Копира папката на програмата на сървъра. Само за преносими програми.">Копирай на сървъра</button>
   </form>
   {% endfor %}
   </details>
-  {% set lnks = apps|selectattr('ext', 'equalto', 'lnk')|list %}
+  {% set lnks = apps|selectattr('ext', 'in', ['lnk', 'cmd'])|list %}
   {% if lnks %}
   <h3>Премахни програма</h3>
   {% for a in lnks %}

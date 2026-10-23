@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import secrets
 import shutil
 import subprocess
@@ -763,19 +764,20 @@ def start_menu():
     for i, root in enumerate(START_DIRS):
         for f in root.rglob("*.lnk") if root.is_dir() else []:
             if "uninstall" not in f.name.lower() and "unins" not in f.name.lower():
-                found.append({"name": f.stem, "rel": f"{i}/{f.relative_to(root).as_posix()}", "target": ""})
+                found.append({"name": f.stem, "rel": f"{i}/{f.relative_to(root).as_posix()}", "target": "", "args": ""})
     found.sort(key=lambda a: a["name"].lower())
     for a, t in zip(found, lnk_targets([str(START_DIRS[int(a["rel"][0])] / a["rel"][2:]) for a in found])):
-        a["target"] = t
+        a["target"], a["args"] = t
     return found
 
 
 def lnk_targets(paths):
-    """Shortcut targets, one per path (one PowerShell call); [] when it fails."""
-    ps = "$s=New-Object -ComObject WScript.Shell; $a=$env:LNKS|ConvertFrom-Json; foreach($l in $a){$s.CreateShortcut($l).TargetPath}"
+    """[(target, arguments)] per shortcut path (one PowerShell call); [] when it fails."""
+    ps = "$s=New-Object -ComObject WScript.Shell; $a=$env:LNKS|ConvertFrom-Json; foreach($l in $a){$c=$s.CreateShortcut($l); $c.TargetPath+[char]9+$c.Arguments}"
     try:
-        return subprocess.run(["powershell", "-NoProfile", "-Command", ps], capture_output=True, text=True, timeout=20,
-                              env={**os.environ, "LNKS": json.dumps(paths)}).stdout.splitlines() if paths else []
+        out = subprocess.run(["powershell", "-NoProfile", "-Command", ps], capture_output=True, text=True, timeout=20,
+                             env={**os.environ, "LNKS": json.dumps(paths)}).stdout.splitlines() if paths else []
+        return [tuple((l + "	").split("	")[:2]) for l in out]
     except Exception:
         return []
 
@@ -829,7 +831,7 @@ async def programs_copy(request: Request):
     """Copy the program's own folder to the server and add a tile that starts it from there (portable apps only)."""
     u = await guard(request, True)
     src = start_src(str((await request.form()).get("rel", "")))
-    target = (lnk_targets([str(src)]) or [""])[0]
+    target, args = (lnk_targets([str(src)]) or [("", "")])[0]
     exe = Path(target)
     folder = exe.parent
     # refuse Windows itself, drive roots and the Program Files folders: only an app's own folder
@@ -843,7 +845,7 @@ async def programs_copy(request: Request):
         raise HTTPException(400, "Папката е твърде голяма (над 1,5 GB)")
     # %~dp0 keeps Cyrillic out of the file: it is the folder the launcher sits in
     launcher = unique(PROG, src.stem + ".cmd")
-    launcher.write_bytes(f'@start "" /d "%~dp0_files\{dest.name}" "{exe.name}"\r\n'.encode("ascii", "replace"))
+    launcher.write_bytes(f'@start "" /d "%~dp0_files\\{dest.name}" "{exe.name}" {args}\r\n'.encode("ascii", "replace"))
     log(u, "program.copy", request, dest.name)
     return RedirectResponse("/programs?msg=" + quote(f"Копирана на сървъра: {src.stem}"), 303)
 
@@ -854,10 +856,14 @@ async def programs_remove(request: Request):
     rel = str((await request.form()).get("rel", ""))
     root = PROG.resolve()
     f = (root / rel).resolve()
-    # only shortcuts: real files (portable apps) are never deleted from here
-    if not rel.lower().endswith(".lnk") or not f.is_relative_to(root) or not f.is_file():
+    # only shortcuts and launchers: real program files are never deleted from here
+    if f.suffix.lower() not in (".lnk", ".cmd") or not f.is_relative_to(root) or not f.is_file():
         raise HTTPException(400, "Невалидна програма")
+    m = re.search(r'_files\\([^"\\]+)"',f.read_text(errors="replace")) if f.suffix.lower() == ".cmd" else None
     f.unlink()
+    copy = (root / "_files" / m.group(1)).resolve() if m else None  # the copy a launcher made
+    if copy and copy.is_relative_to(root / "_files") and copy.is_dir():
+        shutil.rmtree(copy, ignore_errors=True)
     log(u, "program.remove", request, f.name)
     return RedirectResponse("/programs?msg=" + quote(f"Премахната: {f.stem}"), 303)
 

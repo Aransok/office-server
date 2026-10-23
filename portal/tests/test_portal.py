@@ -299,13 +299,23 @@ def test_program_copy_to_server(admin, tmp_path, monkeypatch):
     root.mkdir()
     (root / "Tool.lnk").write_bytes(b"x")
     monkeypatch.setattr(main, "START_DIRS", [root])
-    monkeypatch.setattr(main, "lnk_targets", lambda paths: [str(app / "tool.exe")])
+    monkeypatch.setattr(main, "lnk_targets", lambda paths: [(str(app / "tool.exe"), "")])
     tok = admin.get("/programs").text.split('name="csrf" value="')[1].split('"')[0]
     r = admin.post("/api/programs/copy", data={"csrf": tok, "rel": "0/Tool.lnk"}, follow_redirects=False)
     assert r.status_code == 303 and (main.PROG / "_files" / "Tool" / "tool.dll").is_file()
     assert '/d "%~dp0_files\Tool" "tool.exe"' in (main.PROG / "Tool.cmd").read_text()
-    monkeypatch.setattr(main, "lnk_targets", lambda paths: ["C:\Windows\System32\charmap.exe"])
+    monkeypatch.setattr(main, "lnk_targets", lambda paths: [("C:\Windows\System32\charmap.exe", "")])
     assert admin.post("/api/programs/copy", data={"csrf": tok, "rel": "0/Tool.lnk"}, follow_redirects=False).status_code == 400
     monkeypatch.setattr(main, "COPY_MAX", 1)
-    monkeypatch.setattr(main, "lnk_targets", lambda paths: [str(app / "tool.exe")])
+    monkeypatch.setattr(main, "lnk_targets", lambda paths: [(str(app / "tool.exe"), "")])
     assert admin.post("/api/programs/copy", data={"csrf": tok, "rel": "0/Tool.lnk"}, follow_redirects=False).status_code == 400
+
+
+def test_program_remove_deletes_copy(admin):
+    from app import main
+    (main.PROG / "_files" / "Tool").mkdir(parents=True)
+    (main.PROG / "_files" / "Tool" / "tool.exe").write_bytes(b"x")
+    (main.PROG / "Tool.cmd").write_bytes(b'@start "" /d "%~dp0_files\Tool" "tool.exe" \r\n')
+    tok = admin.get("/programs").text.split('name="csrf" value="')[1].split('"')[0]
+    r = admin.post("/api/programs/remove", data={"csrf": tok, "rel": "Tool.cmd"}, follow_redirects=False)
+    assert r.status_code == 303 and not (main.PROG / "Tool.cmd").exists() and not (main.PROG / "_files" / "Tool").exists()
