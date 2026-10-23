@@ -22,3 +22,8 @@
 - Не е тествано в истински браузър (само TestClient).
 - Реалният IP на клиента през Caddy не е проверен.
 - Python 3.11.9 тук, спецификацията иска 3.12+.
+
+## Обновление (2026-10-23)
+- Смяна на парола от потребителя (/account) и задаване от админа; CLI reset-password вече сменя и Windows паролата.
+- GitHub Actions тестовете минават (Aransok/office-server, публично).
+- UPDATE-SERVER.cmd / scripts\update.ps1: сваля main от GitHub, пази .env, portal.db, .venv. Не е тествано на сървъра.
