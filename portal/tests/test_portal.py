@@ -270,3 +270,16 @@ def test_programs_page_lists_launchable_files_only(bob):
     assert "unins000" not in t and "data.txt" not in t and "zzsecret" not in t
     import shutil
     shutil.rmtree(PROG)
+
+
+def test_program_add_from_start_menu(admin, tmp_path, monkeypatch):
+    from app import main
+    root = tmp_path / "sm"
+    (root / "Scan").mkdir(parents=True)
+    (root / "Scan" / "Scanner.lnk").write_bytes(b"x")
+    monkeypatch.setattr(main, "START_DIRS", [root])
+    tok = admin.get("/programs").text.split('name="csrf" value="')[1].split('"')[0]
+    for bad in ("0/../x.lnk", "0/Scan/Scanner.exe", "9/Scan/Scanner.lnk", "0/Missing.lnk"):
+        assert admin.post("/api/programs/add", data={"csrf": tok, "rel": bad}, follow_redirects=False).status_code == 400
+    r = admin.post("/api/programs/add", data={"csrf": tok, "rel": "0/Scan/Scanner.lnk"}, follow_redirects=False)
+    assert r.status_code == 303 and (main.PROG / "Scanner.lnk").is_file()

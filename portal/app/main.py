@@ -754,9 +754,52 @@ def app_list():
                             "link": "officeapp:///?p=" + quote((group + "/" if group else "") + f.name, safe="")})
     return out[:60]
 
+START_DIRS = [Path(os.environ[k]) / "Microsoft/Windows/Start Menu/Programs" for k in ("ProgramData", "APPDATA") if os.environ.get(k)]
+
+
+def start_menu():
+    """Installed programs as Start Menu shortcuts: [{name, rel, target}] (rel = '<root index>/<path>')."""
+    found = []
+    for i, root in enumerate(START_DIRS):
+        for f in root.rglob("*.lnk") if root.is_dir() else []:
+            if "uninstall" not in f.name.lower() and "unins" not in f.name.lower():
+                found.append({"name": f.stem, "rel": f"{i}/{f.relative_to(root).as_posix()}", "target": ""})
+    found.sort(key=lambda a: a["name"].lower())
+    if found:  # one PowerShell call reads every target
+        ps = "$s=New-Object -ComObject WScript.Shell; $env:LNKS|ConvertFrom-Json|%{$s.CreateShortcut($_).TargetPath}"
+        try:
+            env = {**os.environ, "LNKS": json.dumps([str(START_DIRS[int(a["rel"][0])] / a["rel"][2:]) for a in found])}
+            out = subprocess.run(["powershell", "-NoProfile", "-Command", ps], capture_output=True, text=True, timeout=20, env=env).stdout.splitlines()
+            for a, t in zip(found, out):
+                a["target"] = t
+        except Exception:
+            pass
+    return found
+
+
 @app.get("/programs", response_class=HTMLResponse)
-async def programs(request: Request):
-    return render(request, "programs.html", await guard(request), apps=app_list())
+async def programs(request: Request, msg: str = ""):
+    u = await guard(request)
+    return render(request, "programs.html", u, apps=app_list(), msg=msg, csrf=u["csrf"],
+                  installed=start_menu() if u["role"] == "admin" else [])
+
+
+@app.post("/api/programs/add")
+async def programs_add(request: Request):
+    u = await guard(request, True)
+    rel = str((await request.form()).get("rel", ""))
+    idx, _, sub = rel.partition("/")
+    if not idx.isdigit() or int(idx) >= len(START_DIRS) or not sub.lower().endswith(".lnk"):
+        raise HTTPException(400, "Невалидна програма")
+    root = START_DIRS[int(idx)].resolve()
+    src = (root / sub).resolve()
+    if not src.is_relative_to(root) or not src.is_file():
+        raise HTTPException(400, "Невалидна програма")
+    PROG.mkdir(exist_ok=True)
+    dst = unique(PROG, src.name)
+    shutil.copy2(src, dst)
+    log(u, "program.add", request, dst.name)
+    return RedirectResponse("/programs?msg=" + quote(f"Добавена: {src.stem}"), 303)
 
 
 @app.get("/client/{name}")

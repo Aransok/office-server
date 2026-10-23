@@ -11,6 +11,23 @@
 </div>
 {% if not apps %}<p class="muted">Още няма програми. Администраторът ги слага в папка „_Програми“ на сървъра, например <b>_Програми\Expecta\Expecta.exe</b>.</p>{% endif %}
 
+{% if user.role == 'admin' %}
+<section class="card">
+  <h2>Добави програма</h2>
+  {% if msg %}<p class="ok">{{ msg }}</p>{% endif %}
+  <p class="muted">Инсталираните на сървъра програми. „Добави“ слага пряк път в <b>_Програми</b> и плочка тук. Пътят вдясно е къде е програмата: клиентът я стартира от <b>същия път на неговия компютър</b>, затова програмата трябва да е инсталирана и там (или да е преносима и в _Програми).</p>
+  <details><summary>Покажи инсталираните ({{ installed|length }})</summary>
+  {% for a in installed %}
+  <form method="post" action="/api/programs/add" class="row">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="rel" value="{{ a.rel }}">
+    <span class="an">{{ a.name }}<small>{{ a.target or '?' }}</small></span>
+    <button class="btn">Добави</button>
+  </form>
+  {% endfor %}
+  </details>
+</section>
+{% endif %}
+
 <section class="card">
   <h2>Настрой този компютър (веднъж)</h2>
   <p>Свалете <b>двата</b> файла в една и съща папка и стартирайте <b>setup.cmd</b> с двоен клик. Той свързва папките като диск <b>O:</b>, приема сертификата на портала, слага преки пътища и позволява на плочките горе да отварят програмите.</p>
