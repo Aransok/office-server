@@ -17,5 +17,5 @@ net user officeapp >nul 2>&1 && (echo officeapp already exists, password unchang
 
 echo.
 echo Done. Next: sign in once as officeapp, open each program and log in so it remembers.
-echo Then in the portal use "Стартирай на сървъра". Only one remote user at a time on Windows 10 Pro.
+echo Then in the portal click the "run on server" button next to the program. Only one remote user at a time on Windows 10 Pro.
 pause
