@@ -813,6 +813,7 @@ async def programs_add(request: Request):
 
 
 COPY_MAX = 1536 * 1024 ** 2
+REMOTE_USER = "officeapp"  # local account made by SETUP-REMOTE.cmd; remote apps run under it with its saved logins
 
 
 def copy_app(folder, dest):
@@ -850,6 +851,26 @@ async def programs_copy(request: Request):
     return RedirectResponse("/programs?msg=" + quote(f"Копирана на сървъра: {src.stem}"), 303)
 
 
+@app.post("/api/programs/remote")
+async def programs_remote(request: Request):
+    """Tile that runs the program on the server (RemoteApp through the officeapp account) and shows only its window."""
+    u = await guard(request, True)
+    src = start_src(str((await request.form()).get("rel", "")))
+    target, args = (lnk_targets([str(src)]) or [("", "")])[0]
+    if not target.lower().endswith(".exe") or not Path(target).is_file():
+        raise HTTPException(400, "Тази програма не може да се стартира отдалечено")
+    (PROG / "_remote").mkdir(parents=True, exist_ok=True)
+    rdp = unique(PROG / "_remote", src.stem + ".rdp")
+    lines = ["full address:s:" + request.url.hostname, "username:s:" + REMOTE_USER, "prompt for credentials:i:0",
+             "authentication level:i:2", "remoteapplicationmode:i:1", "remoteapplicationname:s:" + src.stem,
+             "remoteapplicationprogram:s:" + target, "remoteapplicationcmdline:s:" + args, "disableremoteappcapscheck:i:1"]
+    rdp.write_bytes(("\r\n".join(lines) + "\r\n").encode("utf-16"))  # mstsc reads UTF-16 with BOM, so Cyrillic names work
+    launcher = unique(PROG, src.stem + ".cmd")
+    launcher.write_bytes(f'@start "" mstsc "%~dp0_remote\\{rdp.name}"\r\n'.encode("ascii", "replace"))
+    log(u, "program.remote", request, rdp.name)
+    return RedirectResponse("/programs?msg=" + quote(f"Добавена отдалечено: {src.stem}"), 303)
+
+
 @app.post("/api/programs/remove")
 async def programs_remove(request: Request):
     u = await guard(request, True)
@@ -859,11 +880,11 @@ async def programs_remove(request: Request):
     # only shortcuts and launchers: real program files are never deleted from here
     if f.suffix.lower() not in (".lnk", ".cmd") or not f.is_relative_to(root) or not f.is_file():
         raise HTTPException(400, "Невалидна програма")
-    m = re.search(r'_files\\([^"\\]+)"',f.read_text(errors="replace")) if f.suffix.lower() == ".cmd" else None
+    m = re.search(r'_(files|remote)\\([^"\\]+)"', f.read_text(errors="replace")) if f.suffix.lower() == ".cmd" else None
     f.unlink()
-    copy = (root / "_files" / m.group(1)).resolve() if m else None  # the copy a launcher made
-    if copy and copy.is_relative_to(root / "_files") and copy.is_dir():
-        shutil.rmtree(copy, ignore_errors=True)
+    made = (root / ("_" + m.group(1)) / m.group(2)).resolve() if m else None  # the copy or .rdp a launcher made
+    if made and made.is_relative_to(root / ("_" + m.group(1))):
+        shutil.rmtree(made, ignore_errors=True) if made.is_dir() else made.unlink(missing_ok=True)
     log(u, "program.remove", request, f.name)
     return RedirectResponse("/programs?msg=" + quote(f"Премахната: {f.stem}"), 303)
 

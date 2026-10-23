@@ -22,7 +22,8 @@
     <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="rel" value="{{ a.rel }}">
     <span class="an">{{ a.name }}<small>{{ a.target or '?' }}{% if a.args %} {{ a.args }}{% endif %}</small></span>
     <button class="btn">Добави</button>
-    <button class="btn" formaction="/api/programs/copy" title="Копира папката на програмата на сървъра. Само за преносими програми.">Копирай на сървъра</button>
+    <button class="btn primary" formaction="/api/programs/remote" title="Програмата се върти на сървъра с неговите пароли, а тук се вижда само прозорецът. Изисква SETUP-REMOTE.cmd на сървъра.">Стартирай на сървъра</button>
+    <button class="btn" formaction="/api/programs/copy"title="Копира папката на програмата на сървъра. Само за преносими програми.">Копирай на сървъра</button>
   </form>
   {% endfor %}
   </details>

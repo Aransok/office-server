@@ -319,3 +319,20 @@ def test_program_remove_deletes_copy(admin):
     tok = admin.get("/programs").text.split('name="csrf" value="')[1].split('"')[0]
     r = admin.post("/api/programs/remove", data={"csrf": tok, "rel": "Tool.cmd"}, follow_redirects=False)
     assert r.status_code == 303 and not (main.PROG / "Tool.cmd").exists() and not (main.PROG / "_files" / "Tool").exists()
+
+
+def test_program_remote_makes_rdp_and_remove_cleans_it(admin, monkeypatch):
+    from app import main
+    main.PROG.mkdir(parents=True, exist_ok=True)
+    exe = main.PROG / "real.exe"
+    exe.write_bytes(b"x")
+    monkeypatch.setattr(main, "lnk_targets", lambda p: [(str(exe), "-x 1")])
+    monkeypatch.setattr(main, "start_src", lambda rel: main.Path("Tool.lnk"))
+    tok = admin.get("/programs").text.split('name="csrf" value="')[1].split('"')[0]
+    r = admin.post("/api/programs/remote", data={"csrf": tok, "rel": "0/Tool.lnk"}, follow_redirects=False)
+    assert r.status_code == 303
+    rdp = (main.PROG / "_remote" / "Tool.rdp").read_bytes().decode("utf-16")
+    assert "remoteapplicationmode:i:1" in rdp and "remoteapplicationcmdline:s:-x 1" in rdp and "username:s:officeapp" in rdp
+    assert "_remote\\Tool.rdp" in (main.PROG / "Tool.cmd").read_text()
+    admin.post("/api/programs/remove", data={"csrf": tok, "rel": "Tool.cmd"}, follow_redirects=False)
+    assert not (main.PROG / "Tool.cmd").exists() and not (main.PROG / "_remote" / "Tool.rdp").exists()
