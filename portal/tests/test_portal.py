@@ -283,3 +283,7 @@ def test_program_add_from_start_menu(admin, tmp_path, monkeypatch):
         assert admin.post("/api/programs/add", data={"csrf": tok, "rel": bad}, follow_redirects=False).status_code == 400
     r = admin.post("/api/programs/add", data={"csrf": tok, "rel": "0/Scan/Scanner.lnk"}, follow_redirects=False)
     assert r.status_code == 303 and (main.PROG / "Scanner.lnk").is_file()
+    for bad in ("../x.lnk", "Scanner.exe", "Missing.lnk"):
+        assert admin.post("/api/programs/remove", data={"csrf": tok, "rel": bad}, follow_redirects=False).status_code == 400
+    r = admin.post("/api/programs/remove", data={"csrf": tok, "rel": "Scanner.lnk"}, follow_redirects=False)
+    assert r.status_code == 303 and not (main.PROG / "Scanner.lnk").exists()

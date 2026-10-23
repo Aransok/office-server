@@ -750,7 +750,7 @@ def app_list():
         for f, group in files:
             ext = os.path.splitext(f.name)[1].lower()
             if f.is_file() and ext in APP_EXT and "unins" not in f.name.lower():
-                out.append({"name": os.path.splitext(f.name)[0], "group": group, "ext": ext[1:],
+                out.append({"name": os.path.splitext(f.name)[0], "group": group, "ext": ext[1:], "rel": (group + "/" if group else "") + f.name,
                             "link": "officeapp:///?p=" + quote((group + "/" if group else "") + f.name, safe="")})
     return out[:60]
 
@@ -800,6 +800,20 @@ async def programs_add(request: Request):
     shutil.copy2(src, dst)
     log(u, "program.add", request, dst.name)
     return RedirectResponse("/programs?msg=" + quote(f"Добавена: {src.stem}"), 303)
+
+
+@app.post("/api/programs/remove")
+async def programs_remove(request: Request):
+    u = await guard(request, True)
+    rel = str((await request.form()).get("rel", ""))
+    root = PROG.resolve()
+    f = (root / rel).resolve()
+    # only shortcuts: real files (portable apps) are never deleted from here
+    if not rel.lower().endswith(".lnk") or not f.is_relative_to(root) or not f.is_file():
+        raise HTTPException(400, "Невалидна програма")
+    f.unlink()
+    log(u, "program.remove", request, f.name)
+    return RedirectResponse("/programs?msg=" + quote(f"Премахната: {f.stem}"), 303)
 
 
 @app.get("/client/{name}")
